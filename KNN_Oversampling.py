@@ -51,7 +51,7 @@ while loop :
             loop = False
     if loop:
         print 'Dataset : ' , chosen_file
-
+        the_k = 0.75
         state = True
         while state:
             separator = raw_input('Pemisah kolom : ')
@@ -61,7 +61,8 @@ while loop :
                 if separator.lower() == 'exit':
                     loop = False
                 state = False
-
+        the_k = raw_input('Prosentase k (0-1): ')
+        the_k = float(the_k)
     if loop:
         clear = lambda : os.system('clear')
         clear()
@@ -99,15 +100,15 @@ while loop :
         # looping array, cari yang jumlahnya kurang dari max_class
         for (index,target_label) in enumerate(arrays):
             if len(arrays[target_label]) < max_class:
-                size_diambil = math.ceil(0.75 * len(arrays[target_label])) #jumlah record yang mau dioversamplingkan
+                size_diambil = math.ceil(the_k * len(arrays[target_label])) #jumlah record yang mau dioversamplingkan
                 size_class_sekarang = len(arrays[target_label]) #ukuran class sekarang
 
                 k = len(arrays[target_label])
                 nbrs = NearestNeighbors(n_neighbors=k, algorithm='auto').fit(arrays[target_label])
                 #cari kedekatan antar record
                 distances, indices = nbrs.kneighbors(arrays[target_label])
-                index_tetangga = indices[0][::-1] #balik array, karena mengambil item yang paling tidak bertetangga sejumlah min_class
-                # index_tetangga = indices[0]
+                # index_tetangga = indices[0][::-1] #balik array, karena mengambil item yang paling tidak bertetangga sejumlah min_class
+                index_tetangga = indices[0]
                 index_tetangga = index_tetangga[0:int(size_diambil)] #ambil index sejumlah size_diambil
 
 
