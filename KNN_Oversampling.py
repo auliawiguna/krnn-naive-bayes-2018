@@ -8,8 +8,10 @@ import math
 import urllib
 import pprint
 import operator
+import pandas as pd
 from sklearn.decomposition import PCA
 from sklearn.naive_bayes import GaussianNB
+from sklearn.metrics import f1_score
 # from imblearn.under_sampling import RandomUnderSampler
 from imblearn.over_sampling import RandomOverSampler
 from sklearn.model_selection import cross_val_score
@@ -64,6 +66,7 @@ while loop :
         the_k = raw_input('Prosentase k (0-1): ')
         the_k = float(the_k)
     if loop:
+        os.system('export TERM=clear')
         clear = lambda : os.system('clear')
         clear()
         #-------------------------------------------------------LOAD DATASET--------------------------------------------
@@ -107,8 +110,8 @@ while loop :
                 nbrs = NearestNeighbors(n_neighbors=k, algorithm='auto').fit(arrays[target_label])
                 #cari kedekatan antar record
                 distances, indices = nbrs.kneighbors(arrays[target_label])
-                # index_tetangga = indices[0][::-1] #balik array, karena mengambil item yang paling tidak bertetangga sejumlah min_class
-                index_tetangga = indices[0]
+                index_tetangga = indices[0][::-1] #balik array, karena mengambil item yang paling tidak bertetangga sejumlah min_class
+                # index_tetangga = indices[0]
                 index_tetangga = index_tetangga[0:int(size_diambil)] #ambil index sejumlah size_diambil
 
 
@@ -150,11 +153,17 @@ while loop :
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.3, random_state=40)
         clf = gaus_before.fit(X_train,y_train)
 
+        #prediksi
+        y_pred  = gaus_before.predict(X_test)
+        #f-measure
+        fm = f1_score(y_test,y_pred,average='micro')
+
         #scoring
         skor = gaus_before.score(X_test,y_test)
         print 'Score tanpa preprocessing : ',skor
         print 'Sample Size tanpa preprocessing : ',X.shape
         scores = cross_val_score(clf , X_test,y_test, cv=3) #10fold cross validation
+        print 'F-Measure : %0.2f' % (fm)
         print "Accuracy tanpa preprocessing : %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2)
 
 
@@ -171,12 +180,17 @@ while loop :
         #scoring
         skor = gaus.score(X_test,y_test)
 
+        #prediksi
+        y_pred  = gaus.predict(X_test)
+        #f-measure
+        fm = f1_score(y_test,y_pred,average='micro')
 
         print 'Score : ',skor
         print 'Data Testing Size : ',X_test.shape
         print 'Undersampling Size : ',X_resampled.shape
         scores = cross_val_score(clf , X_test,y_test, cv=3) #10fold cross validation
         scores.shape
+        print 'F-Measure : %0.2f' % (fm)
         print "Accuracy sesudah sampling : %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2)
 
 
@@ -196,12 +210,18 @@ while loop :
         X_train, X_test, y_train, y_test = train_test_split(X_rknn, y_rknn, test_size=.3, random_state=40)
         clf = gaus_before.fit(X_train,y_train)
 
+        #prediksi
+        y_pred  = gaus.predict(X_test)
+        #f-measure
+        fm = f1_score(y_test,y_pred,average='micro')
+
         #scoring
         skor = gaus_before.score(X_test,y_test)
         print 'Score : ',skor
         print 'kRNN Size : ',X_rknn.shape
         print 'Data Testing Size : ',X_test.shape
         scores = cross_val_score(clf , X_test,y_test, cv=3) #10fold cross validation
+        print 'F-Measure : %0.2f' % (fm)
         print "Accuracy kRNN : %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2)
 
 
@@ -213,7 +233,13 @@ while loop :
         X_rknn = np.concatenate((X_rknn , X_oversampling))
         y_rknn = np.concatenate((y_rknn , y_oversampling))
         X_train, X_test, y_train, y_test = train_test_split(X_rknn, y_rknn, test_size=.3, random_state=40)
+
         clf = gaus_before.fit(X_train,y_train)
+
+        #prediksi
+        y_pred  = gaus_before.predict(X_test)
+        #f-measure
+        fm = f1_score(y_test,y_pred,average='micro')
 
         #scoring
         skor = gaus_before.score(X_test,y_test)
@@ -221,4 +247,5 @@ while loop :
         print 'kRNN Size : ',X_rknn.shape
         print 'Data Testing Size : ',X_test.shape
         scores = cross_val_score(clf , X_test,y_test, cv=3) #10fold cross validation
+        print 'F-Measure : %0.2f' % (fm)
         print "Accuracy kRNN Undersampling random Oversampling : %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2)
