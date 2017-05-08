@@ -12,8 +12,13 @@ import pandas as pd
 from sklearn.decomposition import PCA
 from sklearn.naive_bayes import GaussianNB
 from sklearn.metrics import f1_score
+from sklearn.metrics import accuracy_score
 # from imblearn.under_sampling import RandomUnderSampler
 from imblearn.over_sampling import RandomOverSampler
+from imblearn.over_sampling import SMOTE
+
+from texttable import Texttable
+
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import precision_score
@@ -66,6 +71,7 @@ while loop :
         the_k = raw_input('Prosentase k (0-1): ')
         the_k = float(the_k)
     if loop:
+        data_table = [["Method/Param",    "Data Size", "Data Training Size", "Akurasi", "F-Measure"]]#menampung hasil hitungan
         os.system('export TERM=clear')
         clear = lambda : os.system('clear')
         clear()
@@ -146,7 +152,6 @@ while loop :
         print 'Size Sesudah Oversampling',X_rknn.shape
 
         #-------------------------------------------------------TANPA OVER SAMLPLING----------------------
-        print 35*'-','BELUM OVERSAMPLING',35*'-'
         gaus_before = GaussianNB()
 
         #kita split training dan testing 3 : 10
@@ -160,15 +165,13 @@ while loop :
 
         #scoring
         skor = gaus_before.score(X_test,y_test)
-        print 'Score tanpa preprocessing : ',skor
-        print 'Sample Size tanpa preprocessing : ',X.shape
-        scores = cross_val_score(clf , X_test,y_test, cv=3) #10fold cross validation
-        print 'F-Measure : %0.2f' % (fm)
-        print "Accuracy tanpa preprocessing : %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2)
+        scores = cross_val_score(clf , X_test,y_test, cv=3,scoring='accuracy') #akurasi
+        akurasi = accuracy_score(y_test,y_pred)
+        f1_macro = cross_val_score(clf , X_test,y_test, cv=3,scoring='f1_macro') #akurasi
+        data_table.append(['No Resampling',str(X.shape),str(X_train.shape), "%0.2f" % (akurasi),"%0.2f" % (f1_macro.mean()) ])
 
 
         #-------------------------------------------------------RANDOM OVER SAMLPLING----------------------
-        print 35*'-','RANDOM OVERSAMPING',35*'-'
         # Apply the random under-sampling
         rus = RandomOverSampler(random_state=40)
         X_resampled, y_resampled = rus.fit_sample(X, y)
@@ -184,14 +187,12 @@ while loop :
         y_pred  = gaus.predict(X_test)
         #f-measure
         fm = f1_score(y_test,y_pred,average='micro')
+        akurasi = accuracy_score(y_test,y_pred)
 
-        print 'Score : ',skor
-        print 'Data Testing Size : ',X_test.shape
-        print 'Undersampling Size : ',X_resampled.shape
-        scores = cross_val_score(clf , X_test,y_test, cv=3) #10fold cross validation
+        scores = cross_val_score(clf , X_test,y_test, cv=3,scoring='accuracy') #10fold cross validation
+        f1_macro = cross_val_score(clf , X_test,y_test, cv=3,scoring='f1_macro') #10fold cross validation
         scores.shape
-        print 'F-Measure : %0.2f' % (fm)
-        print "Accuracy sesudah sampling : %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2)
+        data_table.append(['Random Oversampling',str(X_resampled.shape),str(X_train.shape), "%0.2f" % (akurasi),"%0.2f" % (f1_macro.mean()) ])
 
 
         # Apply the random under-sampling
@@ -203,7 +204,6 @@ while loop :
 
 
         #-------------------------------------------------------kRNN OVER SAMLPLING----------------------
-        print 35*'-','kRNN OVERSAMPLING',35*'-'
         gaus_before = GaussianNB()
 
         #kita split training dan testing 3 : 10
@@ -214,38 +214,68 @@ while loop :
         y_pred  = gaus.predict(X_test)
         #f-measure
         fm = f1_score(y_test,y_pred,average='micro')
+        akurasi = accuracy_score(y_test,y_pred)
 
         #scoring
         skor = gaus_before.score(X_test,y_test)
-        print 'Score : ',skor
-        print 'kRNN Size : ',X_rknn.shape
-        print 'Data Testing Size : ',X_test.shape
-        scores = cross_val_score(clf , X_test,y_test, cv=3) #10fold cross validation
-        print 'F-Measure : %0.2f' % (fm)
-        print "Accuracy kRNN : %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2)
+        scores = cross_val_score(clf , X_test,y_test, cv=3,scoring='accuracy') #10fold cross validation
+        f1_macro = cross_val_score(clf , X_test,y_test, cv=3,scoring='f1_macro') #10fold cross validation
+        data_table.append(['kRNN Oversampling',str(X_rknn.shape),str(X_train.shape), "%0.2f" % (akurasi),"%0.2f" % (f1_macro.mean()) ])
 
-
-        #-------------------------------------------------------kRNN UNDER SAMLPLING RANDOM----------------------
-        print 35*'-','kRNN RANDOM OVERSAMPLING',35*'-'
+        #-------------------------------------------------------SMOTE ----------------------
         gaus_before = GaussianNB()
+        sm = SMOTE(random_state=42)
+        X_smote, y_smote= sm.fit_sample(X, y)
+
+        #gabungkan dataset hasil rKNN & SMOTE
 
         #kita split training dan testing 3 : 10
-        X_rknn = np.concatenate((X_rknn , X_oversampling))
-        y_rknn = np.concatenate((y_rknn , y_oversampling))
-        X_train, X_test, y_train, y_test = train_test_split(X_rknn, y_rknn, test_size=.3, random_state=40)
-
+        X_train, X_test, y_train, y_test = train_test_split(X_smote, y_smote, test_size=.3, random_state=40)
         clf = gaus_before.fit(X_train,y_train)
 
+
         #prediksi
-        y_pred  = gaus_before.predict(X_test)
+        y_pred  = gaus.predict(X_test)
+        #f-measure
+        fm = f1_score(y_test,y_pred,average='micro')
+        akurasi = accuracy_score(y_test,y_pred)
+
+        #scoring
+        skor = gaus_before.score(X_test,y_test)
+        scores = cross_val_score(clf , X_test,y_test, cv=3,scoring='accuracy') #10fold cross validation
+        f1_macro = cross_val_score(clf , X_test,y_test, cv=3,scoring='f1_macro') #10fold cross validation
+        data_table.append(['SMOTE',str(X_rknn.shape),str(X_train.shape), "%0.2f" % (akurasi),"%0.2f" % (f1_macro.mean()) ])
+
+        #-------------------------------------------------------kRNN OVER SAMLPLING + SMOTE ----------------------
+        gaus_before = GaussianNB()
+        sm = SMOTE(random_state=42)
+        X_smote, y_smote= sm.fit_sample(X, y)
+
+        #gabungkan dataset hasil rKNN & SMOTE
+        X_smote = np.concatenate((X_rknn , X_smote))
+        y_smote = np.concatenate((y_rknn , y_smote))
+
+        #kita split training dan testing 3 : 10
+        X_train, X_test, y_train, y_test = train_test_split(X_smote, y_smote, test_size=.3, random_state=40)
+        clf = gaus_before.fit(X_train,y_train)
+
+
+        #prediksi
+        y_pred  = gaus.predict(X_test)
+        akurasi = accuracy_score(y_test,y_pred)
         #f-measure
         fm = f1_score(y_test,y_pred,average='micro')
 
         #scoring
         skor = gaus_before.score(X_test,y_test)
-        print 'Score sebelum sampling : ',skor
-        print 'kRNN Size : ',X_rknn.shape
-        print 'Data Testing Size : ',X_test.shape
-        scores = cross_val_score(clf , X_test,y_test, cv=3) #10fold cross validation
-        print 'F-Measure : %0.2f' % (fm)
-        print "Accuracy kRNN Undersampling random Oversampling : %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2)
+        scores = cross_val_score(clf , X_test,y_test, cv=3,scoring='accuracy') #10fold cross validation
+        f1_macro = cross_val_score(clf , X_test,y_test, cv=3,scoring='f1_macro') #10fold cross validation
+        data_table.append(['kRNN Oversampling+SMOTE',str(X_smote.shape),str(X_train.shape), "%0.2f" % (akurasi),"%0.2f" % (f1_macro.mean()) ])
+
+        #DRAW TABLE-----------------------------------------------------------------------------------------------------------------------
+        table = Texttable()
+        # table.set_deco(Texttable.HEADER)
+        table.set_cols_dtype(['t', 't',  't',  't',  't']) # automatic
+        table.set_cols_align(["l", "r", "r", "r", "l"])
+        table.add_rows(data_table)
+        print table.draw()
