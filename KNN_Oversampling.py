@@ -11,8 +11,13 @@ import operator
 import pandas as pd
 from sklearn.decomposition import PCA
 from sklearn.naive_bayes import GaussianNB
+
+#metrik
 from sklearn.metrics import f1_score
 from sklearn.metrics import accuracy_score
+from sklearn.metrics import precision_score
+from sklearn.metrics import recall_score
+
 # from imblearn.under_sampling import RandomUnderSampler
 from imblearn.over_sampling import RandomOverSampler
 from imblearn.over_sampling import SMOTE
@@ -71,7 +76,7 @@ while loop :
         the_k = raw_input('Prosentase k (0-1): ')
         the_k = float(the_k)
     if loop:
-        data_table = [["Method/Param",    "Data Size", "Data Training Size", "Akurasi", "F-Measure"]]#menampung hasil hitungan
+        data_table = [["Method/Param",    "Data Size", "Data Training Size", "Akurasi", "F-Measure","Precision","Recall"]]#menampung hasil hitungan
         os.system('export TERM=clear')
         clear = lambda : os.system('clear')
         clear()
@@ -162,13 +167,18 @@ while loop :
         y_pred  = gaus_before.predict(X_test)
         #f-measure
         fm = f1_score(y_test,y_pred,average='micro')
+        #akurasi
+        akurasi = accuracy_score(y_test,y_pred)
+        #presisi
+        presisi = precision_score(y_test,y_pred)
+        #recall
+        recall = recall_score(y_test,y_pred)
 
         #scoring
         skor = gaus_before.score(X_test,y_test)
         scores = cross_val_score(clf , X_test,y_test, cv=3,scoring='accuracy') #akurasi
-        akurasi = accuracy_score(y_test,y_pred)
         f1_macro = cross_val_score(clf , X_test,y_test, cv=3,scoring='f1_macro') #akurasi
-        data_table.append(['No Resampling',str(X.shape),str(X_train.shape), "%0.2f" % (akurasi),"%0.2f" % (f1_macro.mean()) ])
+        data_table.append(['No Resampling',str(X.shape),str(X_train.shape), "%0.2f" % (akurasi),"%0.2f" % (fm),"%0.2f" % (presisi),"%0.2f" % (recall) ])
 
 
         #-------------------------------------------------------RANDOM OVER SAMLPLING----------------------
@@ -185,14 +195,20 @@ while loop :
 
         #prediksi
         y_pred  = gaus.predict(X_test)
+        #presisi
+        presisi = precision_score(y_test,y_pred)
+        #recall
+        recall = recall_score(y_test,y_pred)
+        #akurasi
+        akurasi = accuracy_score(y_test,y_pred)
+
         #f-measure
         fm = f1_score(y_test,y_pred,average='micro')
-        akurasi = accuracy_score(y_test,y_pred)
 
         scores = cross_val_score(clf , X_test,y_test, cv=3,scoring='accuracy') #10fold cross validation
         f1_macro = cross_val_score(clf , X_test,y_test, cv=3,scoring='f1_macro') #10fold cross validation
         scores.shape
-        data_table.append(['Random Oversampling',str(X_resampled.shape),str(X_train.shape), "%0.2f" % (akurasi),"%0.2f" % (f1_macro.mean()) ])
+        data_table.append(['Random Oversampling',str(X_resampled.shape),str(X_train.shape), "%0.2f" % (akurasi),"%0.2f" % (fm),"%0.2f" % (presisi),"%0.2f" % (recall) ])
 
 
         # Apply the random under-sampling
@@ -214,13 +230,18 @@ while loop :
         y_pred  = gaus.predict(X_test)
         #f-measure
         fm = f1_score(y_test,y_pred,average='micro')
+        #akurasi
         akurasi = accuracy_score(y_test,y_pred)
+        #presisi
+        presisi = precision_score(y_test,y_pred)
+        #recall
+        recall = recall_score(y_test,y_pred)
 
         #scoring
         skor = gaus_before.score(X_test,y_test)
         scores = cross_val_score(clf , X_test,y_test, cv=3,scoring='accuracy') #10fold cross validation
         f1_macro = cross_val_score(clf , X_test,y_test, cv=3,scoring='f1_macro') #10fold cross validation
-        data_table.append(['kRNN Oversampling',str(X_rknn.shape),str(X_train.shape), "%0.2f" % (akurasi),"%0.2f" % (f1_macro.mean()) ])
+        data_table.append(['kRNN Oversampling',str(X_rknn.shape),str(X_train.shape), "%0.2f" % (akurasi),"%0.2f" % (fm),"%0.2f" % (presisi),"%0.2f" % (recall) ])
 
         #-------------------------------------------------------SMOTE ----------------------
         gaus_before = GaussianNB()
@@ -238,13 +259,18 @@ while loop :
         y_pred  = gaus.predict(X_test)
         #f-measure
         fm = f1_score(y_test,y_pred,average='micro')
+        #akurasi
         akurasi = accuracy_score(y_test,y_pred)
+        #presisi
+        presisi = precision_score(y_test,y_pred)
+        #recall
+        recall = recall_score(y_test,y_pred)
 
         #scoring
         skor = gaus_before.score(X_test,y_test)
         scores = cross_val_score(clf , X_test,y_test, cv=3,scoring='accuracy') #10fold cross validation
         f1_macro = cross_val_score(clf , X_test,y_test, cv=3,scoring='f1_macro') #10fold cross validation
-        data_table.append(['SMOTE',str(X_rknn.shape),str(X_train.shape), "%0.2f" % (akurasi),"%0.2f" % (f1_macro.mean()) ])
+        data_table.append(['SMOTE',str(X_rknn.shape),str(X_train.shape), "%0.2f" % (akurasi),"%0.2f" % (fm),"%0.2f" % (presisi),"%0.2f" % (recall) ])
 
         #-------------------------------------------------------kRNN OVER SAMLPLING + SMOTE ----------------------
         gaus_before = GaussianNB()
@@ -262,20 +288,25 @@ while loop :
 
         #prediksi
         y_pred  = gaus.predict(X_test)
+        #akurasi
         akurasi = accuracy_score(y_test,y_pred)
         #f-measure
         fm = f1_score(y_test,y_pred,average='micro')
+        #presisi
+        presisi = precision_score(y_test,y_pred)
+        #recall
+        recall = recall_score(y_test,y_pred)
 
         #scoring
         skor = gaus_before.score(X_test,y_test)
         scores = cross_val_score(clf , X_test,y_test, cv=3,scoring='accuracy') #10fold cross validation
         f1_macro = cross_val_score(clf , X_test,y_test, cv=3,scoring='f1_macro') #10fold cross validation
-        data_table.append(['kRNN Oversampling+SMOTE',str(X_smote.shape),str(X_train.shape), "%0.2f" % (akurasi),"%0.2f" % (f1_macro.mean()) ])
+        data_table.append(['kRNN Oversampling+SMOTE',str(X_smote.shape),str(X_train.shape), "%0.2f" % (akurasi),"%0.2f" % (fm),"%0.2f" % (presisi),"%0.2f" % (recall) ])
 
         #DRAW TABLE-----------------------------------------------------------------------------------------------------------------------
         table = Texttable()
         # table.set_deco(Texttable.HEADER)
-        table.set_cols_dtype(['t', 't',  't',  't',  't']) # automatic
-        table.set_cols_align(["l", "r", "r", "r", "l"])
+        table.set_cols_dtype(['t', 't',  't',  't',  't','t',"t"]) # automatic
+        table.set_cols_align(["l", "r", "r", "r", "r","r","r"])
         table.add_rows(data_table)
         print table.draw()
