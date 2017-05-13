@@ -17,6 +17,10 @@ from sklearn.metrics import f1_score
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import precision_score
 from sklearn.metrics import recall_score
+from sklearn.metrics import confusion_matrix
+
+#normalisasi
+from sklearn import preprocessing
 
 # from imblearn.under_sampling import RandomUnderSampler
 from imblearn.over_sampling import RandomOverSampler
@@ -26,13 +30,13 @@ from texttable import Texttable
 
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import precision_score
 from sklearn.neighbors import NearestNeighbors
 import warnings
 warnings.filterwarnings("ignore")
 pp = pprint.PrettyPrinter(indent=4)
 print 'Finish import.....'
 
+min_max_scaler = preprocessing.MinMaxScaler()
 
 #BEGIN
 def print_menu() :
@@ -66,6 +70,7 @@ while loop :
         the_k = 0.75
         state = True
         while state:
+            #get separator dataset
             separator = raw_input('Pemisah kolom : ')
             if separator != ',' and separator != ';' and separator.lower() != 'exit':
                 state  = True
@@ -73,10 +78,22 @@ while loop :
                 if separator.lower() == 'exit':
                     loop = False
                 state = False
+
+        state = True
+        while state:
+            #apakah mau dinormalisasi?
+            normalisasi = raw_input('Normalisasi? (y/n) : ')
+            if normalisasi != 'y' and normalisasi != 'n' and separator.lower() != 'exit':
+                state  = True
+            else :
+                if separator.lower() == 'exit':
+                    loop = False
+                state = False
+
         the_k = raw_input('Prosentase k (0-1): ')
         the_k = float(the_k)
     if loop:
-        data_table = [["Method/Param",    "Data Size", "Data Training Size", "Akurasi", "F-Measure","Precision","Recall"]]#menampung hasil hitungan
+        data_table = [["Method/Param",    "Data Size", "Data Training Size", "Akurasi", "F-Measure","Precision","Recall","TP","FP","TN","FN"]]#menampung hasil hitungan
         os.system('export TERM=clear')
         clear = lambda : os.system('clear')
         clear()
@@ -93,6 +110,10 @@ while loop :
         min_index,min_class = min(enumerate(jumlah_class), key=operator.itemgetter(1)) #min_class jumlah class terkecil
         max_index,max_class = max(enumerate(jumlah_class), key=operator.itemgetter(1)) #max_class jumlah class terbesar
 
+        X_awal = X #jaga-jaga aja, simpan X awal di X_awal
+        #apakah di normalisasi?
+        if normalisasi=='y':
+            X = min_max_scaler.fit_transform(X)
         #pisahkan dataset
         arrays = {}
         arrays_final = {}
@@ -119,8 +140,10 @@ while loop :
 
                 k = len(arrays[target_label])
                 nbrs = NearestNeighbors(n_neighbors=k, algorithm='auto').fit(arrays[target_label])
+                array_target_knn = arrays[target_label] #array yang mau di-kNN
+
                 #cari kedekatan antar record
-                distances, indices = nbrs.kneighbors(arrays[target_label])
+                distances, indices = nbrs.kneighbors(array_target_knn)
                 index_tetangga = indices[0][::-1] #balik array, karena mengambil item yang paling tidak bertetangga sejumlah min_class
                 # index_tetangga = indices[0]
                 index_tetangga = index_tetangga[0:int(size_diambil)] #ambil index sejumlah size_diambil
@@ -142,6 +165,10 @@ while loop :
         y_rknn = []
         kolom = 0
         baris = 0
+
+        #override X menjadi X_awal (jaga-jaga aja sih kalo pake normalisasi)
+        if normalisasi=='y':
+            X = X_awal
 
         print 100*'-'
 
@@ -173,12 +200,16 @@ while loop :
         presisi = precision_score(y_test,y_pred)
         #recall
         recall = recall_score(y_test,y_pred)
+        #confussion matrix
+        # label = np.sort(np.unique(y_test))[::-1]
+        label = np.unique(y_test)
+        tn, fp, fn, tp = confusion_matrix(y_test, y_pred,labels=label).ravel()
 
         #scoring
         skor = gaus_before.score(X_test,y_test)
         scores = cross_val_score(clf , X_test,y_test, cv=3,scoring='accuracy') #akurasi
         f1_macro = cross_val_score(clf , X_test,y_test, cv=3,scoring='f1_macro') #akurasi
-        data_table.append(['No Resampling',str(X.shape),str(X_train.shape), "%0.2f" % (akurasi),"%0.2f" % (fm),"%0.2f" % (presisi),"%0.2f" % (recall) ])
+        data_table.append(['No Resampling',str(X.shape),str(X_train.shape), "%0.2f" % (akurasi),"%0.2f" % (fm),"%0.2f" % (presisi),"%0.2f" % (recall) , tp, fp , tn ,fn])
 
 
         #-------------------------------------------------------RANDOM OVER SAMLPLING----------------------
@@ -201,6 +232,10 @@ while loop :
         recall = recall_score(y_test,y_pred)
         #akurasi
         akurasi = accuracy_score(y_test,y_pred)
+        #confussion matrix
+        # label = np.sort(np.unique(y_test))[::-1]
+        label = np.unique(y_test)
+        tn, fp, fn, tp = confusion_matrix(y_test, y_pred,labels=label).ravel()
 
         #f-measure
         fm = f1_score(y_test,y_pred,average='micro')
@@ -208,7 +243,7 @@ while loop :
         scores = cross_val_score(clf , X_test,y_test, cv=3,scoring='accuracy') #10fold cross validation
         f1_macro = cross_val_score(clf , X_test,y_test, cv=3,scoring='f1_macro') #10fold cross validation
         scores.shape
-        data_table.append(['Random Oversampling',str(X_resampled.shape),str(X_train.shape), "%0.2f" % (akurasi),"%0.2f" % (fm),"%0.2f" % (presisi),"%0.2f" % (recall) ])
+        data_table.append(['Random Oversampling',str(X_resampled.shape),str(X_train.shape), "%0.2f" % (akurasi),"%0.2f" % (fm),"%0.2f" % (presisi),"%0.2f" % (recall) , tp, fp , tn ,fn ])
 
 
         # Apply the random under-sampling
@@ -236,12 +271,16 @@ while loop :
         presisi = precision_score(y_test,y_pred)
         #recall
         recall = recall_score(y_test,y_pred)
+        #confussion matrix
+        # label = np.sort(np.unique(y_test))[::-1]
+        label = np.unique(y_test)
+        tn, fp, fn, tp = confusion_matrix(y_test, y_pred,labels=label).ravel()
 
         #scoring
         skor = gaus_before.score(X_test,y_test)
         scores = cross_val_score(clf , X_test,y_test, cv=3,scoring='accuracy') #10fold cross validation
         f1_macro = cross_val_score(clf , X_test,y_test, cv=3,scoring='f1_macro') #10fold cross validation
-        data_table.append(['kRNN Oversampling',str(X_rknn.shape),str(X_train.shape), "%0.2f" % (akurasi),"%0.2f" % (fm),"%0.2f" % (presisi),"%0.2f" % (recall) ])
+        data_table.append(['kRNN Oversampling',str(X_rknn.shape),str(X_train.shape), "%0.2f" % (akurasi),"%0.2f" % (fm),"%0.2f" % (presisi),"%0.2f" % (recall) , tp, fp , tn ,fn ])
 
         #-------------------------------------------------------SMOTE ----------------------
         gaus_before = GaussianNB()
@@ -265,12 +304,16 @@ while loop :
         presisi = precision_score(y_test,y_pred)
         #recall
         recall = recall_score(y_test,y_pred)
+        #confussion matrix
+        # label = np.sort(np.unique(y_test))[::-1]
+        label = np.unique(y_test)
+        tn, fp, fn, tp = confusion_matrix(y_test, y_pred,labels=label).ravel()
 
         #scoring
         skor = gaus_before.score(X_test,y_test)
         scores = cross_val_score(clf , X_test,y_test, cv=3,scoring='accuracy') #10fold cross validation
         f1_macro = cross_val_score(clf , X_test,y_test, cv=3,scoring='f1_macro') #10fold cross validation
-        data_table.append(['SMOTE',str(X_rknn.shape),str(X_train.shape), "%0.2f" % (akurasi),"%0.2f" % (fm),"%0.2f" % (presisi),"%0.2f" % (recall) ])
+        data_table.append(['SMOTE',str(X_rknn.shape),str(X_train.shape), "%0.2f" % (akurasi),"%0.2f" % (fm),"%0.2f" % (presisi),"%0.2f" % (recall) , tp, fp , tn ,fn ])
 
         #-------------------------------------------------------kRNN OVER SAMLPLING + SMOTE ----------------------
         gaus_before = GaussianNB()
@@ -296,17 +339,21 @@ while loop :
         presisi = precision_score(y_test,y_pred)
         #recall
         recall = recall_score(y_test,y_pred)
+        #confussion matrix
+        # label = np.sort(np.unique(y_test))[::-1]
+        label = np.unique(y_test)
+        tn, fp, fn, tp = confusion_matrix(y_test, y_pred,labels=label).ravel()
 
         #scoring
         skor = gaus_before.score(X_test,y_test)
         scores = cross_val_score(clf , X_test,y_test, cv=3,scoring='accuracy') #10fold cross validation
         f1_macro = cross_val_score(clf , X_test,y_test, cv=3,scoring='f1_macro') #10fold cross validation
-        data_table.append(['kRNN Oversampling+SMOTE',str(X_smote.shape),str(X_train.shape), "%0.2f" % (akurasi),"%0.2f" % (fm),"%0.2f" % (presisi),"%0.2f" % (recall) ])
+        data_table.append(['kRNN Oversampling+SMOTE',str(X_smote.shape),str(X_train.shape), "%0.2f" % (akurasi),"%0.2f" % (fm),"%0.2f" % (presisi),"%0.2f" % (recall) , tp, fp , tn ,fn ])
 
         #DRAW TABLE-----------------------------------------------------------------------------------------------------------------------
         table = Texttable()
         # table.set_deco(Texttable.HEADER)
-        table.set_cols_dtype(['t', 't',  't',  't',  't','t',"t"]) # automatic
-        table.set_cols_align(["l", "r", "r", "r", "r","r","r"])
+        table.set_cols_dtype(['t', 't',  't',  't',  't','t',"t","t","t","t","t"]) # automatic
+        table.set_cols_align(["l", "r", "r", "r", "r","r","r","r","r","r","r"])
         table.add_rows(data_table)
         print table.draw()
