@@ -107,9 +107,12 @@ while loop :
         # separate the data from the target attributes
         X = dataset[:,0:dataset.shape[1]-2] #ambil kolom dari kolom ke 0 sampai ke kolom 2 dari kanan
         y = dataset[:,dataset.shape[1] - 1] #ambil kolom terakhir
+
+
         y_class,index_class,jumlah_class  = np.unique(y,return_counts=True, return_index=True) #dapatkan target labelnya apa aja
         min_index,min_class = min(enumerate(jumlah_class), key=operator.itemgetter(1)) #min_class jumlah class terkecil
         max_index,max_class = max(enumerate(jumlah_class), key=operator.itemgetter(1)) #max_class jumlah class terbesar
+
 
         X_awal = X #jaga-jaga aja, simpan X awal di X_awal
         #apakah di normalisasi?
@@ -123,15 +126,25 @@ while loop :
         print 'Jumlah Record di Class minoritas : ',min_class
         print 'Jumlah Record di Class mayoritas : ',max_class
 
+        #split dulu disini
+        X_train_krnn, X_test_krnn, y_train_krnn, y_test_krnn = train_test_split(X, y, test_size=.3, random_state=40)
+
+        y_class,index_class,jumlah_class  = np.unique(y_train_krnn,return_counts=True, return_index=True) #dapatkan target labelnya apa aja
+        min_index,min_class = min(enumerate(jumlah_class), key=operator.itemgetter(1)) #min_class jumlah class terkecil
+        max_index,max_class = max(enumerate(jumlah_class), key=operator.itemgetter(1)) #max_class jumlah class terbesar
+
+        print 'Jumlah Data Training kRNN : ',X_train_krnn.shape[0]
+        print 'Jumlah Data Testing kRNN  : ',X_test_krnn.shape[0]
+
         #looping class yang ada
         for target in y_class:
             arrays[target] = []
             arrays_final[target] = [] #menampung data asli/ori
 
-            for (index,target_label) in enumerate(y): #looping y, dapatkan target label dan recordnya
+            for (index,target_label) in enumerate(y_train_krnn): #looping y hasil split sbg data training, dapatkan target label dan recordnya
                 if target_label==target: #jika record = target
-                    arrays[target].append(X[index])
-                    arrays_final[target].append(X[index]) #menampung data asli/ori
+                    arrays[target].append(X_train_krnn[index])
+                    arrays_final[target].append(X_train_krnn[index]) #menampung data asli/ori
 
         # looping array, cari yang jumlahnya kurang dari max_class
         for (index,target_label) in enumerate(arrays):
@@ -181,7 +194,7 @@ while loop :
         X_rknn = np.array(X_rknn) #convert normal array to numpy array
         y_rknn = np.array(y_rknn) #convert normal array to numpy array
 
-        print 'Size Sebelum Oversampling',X.shape
+        print 'Size Sebelum Oversampling',X_train_krnn.shape
         print 'Size Sesudah Oversampling',X_rknn.shape
 
         #-------------------------------------------------------TANPA OVER SAMLPLING----------------------
@@ -216,10 +229,14 @@ while loop :
         #-------------------------------------------------------RANDOM OVER SAMLPLING----------------------
         # Apply the random under-sampling
         rus = RandomOverSampler(random_state=40)
-        X_resampled, y_resampled = rus.fit_sample(X, y)
         #declare Gaussian and fit with resampled dataset
         gaus = GaussianNB()
-        X_train, X_test, y_train, y_test = train_test_split(X_resampled, y_resampled, test_size=.3, random_state=40)
+        #split
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.3, random_state=40)
+
+        #perform random oversampling
+        X_resampled, y_resampled = rus.fit_sample(X_train, y_train)
+
         clf = gaus.fit(X_train,y_train)
 
         #scoring
@@ -259,13 +276,13 @@ while loop :
         gaus = GaussianNB()
 
         #kita split training dan testing 3 : 10
-        X_train, X_test, y_train, y_test = train_test_split(X_rknn, y_rknn, test_size=.3, random_state=40)
-        clf = gaus.fit(X_train,y_train)
+        # X_train, X_test, y_train, y_test = train_test_split(X_rknn, y_rknn, test_size=.3, random_state=40)
+        clf = gaus.fit(X_rknn,y_rknn)
 
         #prediksi
-        y_pred  = gaus.predict(X_test)
+        y_pred  = gaus.predict(X_test_krnn)
         #f-measure
-        fm = f1_score(y_test,y_pred,average='micro')
+        fm = f1_score(y_test_krnn,y_pred,average='micro')
         #akurasi
         akurasi = accuracy_score(y_test,y_pred)
         #presisi
@@ -286,12 +303,16 @@ while loop :
         #-------------------------------------------------------SMOTE ----------------------
         gaus = GaussianNB()
         sm = SMOTE(random_state=42)
-        X_smote, y_smote= sm.fit_sample(X, y)
+
 
         #gabungkan dataset hasil rKNN & SMOTE
 
         #kita split training dan testing 3 : 10
-        X_train, X_test, y_train, y_test = train_test_split(X_smote, y_smote, test_size=.3, random_state=40)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.3, random_state=40)
+
+        #perform smote
+        X_smote, y_smote= sm.fit_sample(X_train, y_train)
+
         clf = gaus.fit(X_train,y_train)
 
 
@@ -316,15 +337,18 @@ while loop :
         f1_macro = cross_val_score(clf , X_test,y_test, cv=3,scoring='f1_macro') #10fold cross validation
         data_table.append(['SMOTE',str(X_rknn.shape),str(X_train.shape), "%0.2f" % (akurasi),"%0.2f" % (fm),"%0.2f" % (presisi),"%0.2f" % (recall) , tp, fp , tn ,fn ])
 
+
         #-------------------------------------------------------(ADASYN) Adaptive Synthetic Sampling Approach for Imbalanced Learning ----------------------
         gaus = GaussianNB()
         sm = ADASYN(random_state=42)
-        X_smote, y_smote= sm.fit_sample(X, y)
+
 
         #kita split training dan testing 3 : 10
-        X_train, X_test, y_train, y_test = train_test_split(X_smote, y_smote, test_size=.3, random_state=40)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.3, random_state=40)
         clf = gaus.fit(X_train,y_train)
 
+        #perform ADASYN
+        X_smote, y_smote= sm.fit_sample(X_train, y_train)
 
         #prediksi
         y_pred  = gaus.predict(X_test)
