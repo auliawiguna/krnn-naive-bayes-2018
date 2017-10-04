@@ -97,7 +97,7 @@ while loop :
         the_k = raw_input('Prosentase k (0-1): ')
         the_k = float(the_k)
     if loop:
-        data_table = [["Method/Param",    "Data Size (After Sampling)", "Data Training Size", "Akurasi +","Akurasi -", "F-Measure","Precision","Recall","TP","FP","TN","FN"]]#menampung hasil hitungan
+        data_table = [["Method/Param",    "Data Size (After Sampling)", "Data Training Size", "Data Testing Size","Akurasi", "F-Measure","Precision","Recall","TP","FP","TN","FN"]]#menampung hasil hitungan
         os.system('export TERM=clear')
         clear = lambda : os.system('clear')
         clear()
@@ -130,24 +130,22 @@ while loop :
         print 'Jumlah Record di Class mayoritas : ',max_class
 
         #split dulu disini
-        X_train_krnn, X_test_krnn, y_train_krnn, y_test_krnn = train_test_split(X, y, test_size=.3, random_state=40)
+        #X_train_krnn, X_test_krnn, y_train_krnn, y_test_krnn = train_test_split(X, y, test_size=.3, random_state=40)
 
-        y_class,index_class,jumlah_class  = np.unique(y_train_krnn,return_counts=True, return_index=True) #dapatkan target labelnya apa aja
+        y_class,index_class,jumlah_class  = np.unique(y,return_counts=True, return_index=True) #dapatkan target labelnya apa aja
         min_index,min_class = min(enumerate(jumlah_class), key=operator.itemgetter(1)) #min_class jumlah class terkecil
         max_index,max_class = max(enumerate(jumlah_class), key=operator.itemgetter(1)) #max_class jumlah class terbesar
 
-        print 'Jumlah Data Training kRNN : ',X_train_krnn.shape[0]
-        print 'Jumlah Data Testing kRNN  : ',X_test_krnn.shape[0]
 
         #looping class yang ada
         for target in y_class:
             arrays[target] = []
             arrays_final[target] = [] #menampung data asli/ori
 
-            for (index,target_label) in enumerate(y_train_krnn): #looping y hasil split sbg data training, dapatkan target label dan recordnya
+            for (index,target_label) in enumerate(y): #looping y hasil split sbg data training, dapatkan target label dan recordnya
                 if target_label==target: #jika record = target
-                    arrays[target].append(X_train_krnn[index])
-                    arrays_final[target].append(X_train_krnn[index]) #menampung data asli/ori
+                    arrays[target].append(X[index])
+                    arrays_final[target].append(X[index]) #menampung data asli/ori
 
         # looping array, cari yang jumlahnya kurang dari max_class
         for (index,target_label) in enumerate(arrays):
@@ -199,7 +197,7 @@ while loop :
         X_rknn = np.array(X_rknn) #convert normal array to numpy array
         y_rknn = np.array(y_rknn) #convert normal array to numpy array
 
-        print 'Size Sebelum kRNN Oversampling',X_train_krnn.shape
+        print 'Size Sebelum kRNN Oversampling',X.shape
         print 'Size Sesudah kRNN Oversampling',X_rknn.shape
 
         #-------------------------------------------------------TANPA OVER SAMLPLING----------------------
@@ -207,6 +205,7 @@ while loop :
 
         #kita split training dan testing 3 : 10
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.3, random_state=40)
+        #eksekusi naive bayes
         clf = gaus.fit(X_train,y_train)
 
         #prediksi
@@ -228,7 +227,7 @@ while loop :
         skor = gaus.score(X_test,y_test)
         scores = cross_val_score(clf , X_test,y_test, cv=3,scoring='accuracy') #akurasi
         f1_macro = cross_val_score(clf , X_test,y_test, cv=3,scoring='f1_macro') #akurasi
-        data_table.append(['No Resampling',str(X.shape),str(X_train.shape), "%0.4f" % (akurasi*100),0,"%0.4f" % (fm*100),"%0.4f" % (presisi*100),"%0.4f" % (recall*100) , tp, fp , tn ,fn])
+        data_table.append(['No Resampling',str(X.shape),str(X_train.shape),str(X_test.shape), "%0.4f" % (akurasi*100),"%0.4f" % (fm*100),"%0.4f" % (presisi*100),"%0.4f" % (recall*100) , tp, fp , tn ,fn])
 
 
         #-------------------------------------------------------RANDOM OVER SAMLPLING----------------------
@@ -238,14 +237,15 @@ while loop :
         #declare Gaussian and fit with resampled dataset
         gaus = GaussianNB()
 
-        #split original dataset
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.3, random_state=40)
 
         #perform random oversampling terhadap data training
-        X_resampled, y_resampled = rus.fit_sample(X_train, y_train)
+        X_resampled, y_resampled = rus.fit_sample(X, y)
+
+        #split original dataset
+        X_train, X_test, y_train, y_test = train_test_split(X_resampled, y_resampled, test_size=.3, random_state=40)
 
         #fit Naive Bayes pada data training yg sudah diresampling
-        clf = gaus.fit(X_resampled,y_resampled)
+        clf = gaus.fit(X_train,y_train)
 
         #scoring
         skor = gaus.score(X_test,y_test)
@@ -270,7 +270,7 @@ while loop :
         scores = cross_val_score(clf , X_test,y_test, cv=3,scoring='accuracy') #10fold cross validation
         f1_macro = cross_val_score(clf , X_test,y_test, cv=3,scoring='f1_macro') #10fold cross validation
         scores.shape
-        data_table.append(['Random Oversampling',str(X_resampled.shape),str(X_train.shape), "%0.4f" % (akurasi*100),0,"%0.4f" % (fm*100),"%0.4f" % (presisi*100),"%0.4f" % (recall*100) , tp, fp , tn ,fn ])
+        data_table.append(['Random Oversampling',str(X_resampled.shape),str(X_train.shape),str(X_test.shape), "%0.4f" % (akurasi*100),"%0.4f" % (fm*100),"%0.4f" % (presisi*100),"%0.4f" % (recall*100) , tp, fp , tn ,fn ])
 
 
         # Apply the random under-sampling
@@ -286,9 +286,13 @@ while loop :
 
         #kita split training dan testing 3 : 10 (sudah di atas)
         # X_train, X_test, y_train, y_test = train_test_split(X_rknn, y_rknn, test_size=.3, random_state=40)
+        X_train_krnn, X_test_krnn, y_train_krnn, y_test_krnn = train_test_split(X_rknn, y_rknn, test_size=.3, random_state=40)
+
+        print 'Jumlah Data Training kRNN : ',X_train_krnn.shape[0]
+        print 'Jumlah Data Testing kRNN  : ',X_test_krnn.shape[0]
 
         #fit Naive Bayes pada data yg sudah di-kRNN
-        clf = gaus.fit(X_rknn,y_rknn)
+        clf = gaus.fit(X_train_krnn,y_train_krnn)
 
         #prediksi menggunakan data test krnn
         y_pred  = gaus.predict(X_test_krnn)
@@ -310,21 +314,20 @@ while loop :
         skor = gaus.score(X_test_krnn,y_test_krnn)
         scores = cross_val_score(clf , X_test_krnn,y_test_krnn, cv=3,scoring='accuracy') #10fold cross validation
         f1_macro = cross_val_score(clf , X_test_krnn,y_test_krnn, cv=3,scoring='f1_macro') #10fold cross validation
-        data_table.append(['kRNN Oversampling',str(X_rknn.shape),str(X_train.shape), "%0.4f" % (akurasi*100),0,"%0.4f" % (fm*100),"%0.4f" % (presisi*100),"%0.4f" % (recall*100) , tp, fp , tn ,fn ])
+        data_table.append(['kRNN Oversampling',str(X_rknn.shape),str(X_train_krnn.shape),str(X_test_krnn.shape), "%0.4f" % (akurasi*100),"%0.4f" % (fm*100),"%0.4f" % (presisi*100),"%0.4f" % (recall*100) , tp, fp , tn ,fn ])
 
         #-------------------------------------------------------SMOTE ----------------------
         gaus = GaussianNB()
         sm = SMOTE(random_state=42)
 
+        #perform smote pada data training
+        X_smote, y_smote= sm.fit_sample(X, y)
 
         #kita split training dan testing 3 : 10
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.3, random_state=40)
-
-        #perform smote pada data training
-        X_smote, y_smote= sm.fit_sample(X_train, y_train)
+        X_train, X_test, y_train, y_test = train_test_split(X_smote, y_smote, test_size=.3, random_state=40)
 
         #fit Naive Bayes pada data training yg sudah di-SMOTE
-        clf = gaus.fit(X_smote,y_smote)
+        clf = gaus.fit(X_train,y_train)
 
         #prediksi
         y_pred  = gaus.predict(X_test)
@@ -345,23 +348,21 @@ while loop :
         skor = gaus.score(X_test,y_test)
         scores = cross_val_score(clf , X_test,y_test, cv=3,scoring='accuracy') #10fold cross validation
         f1_macro = cross_val_score(clf , X_test,y_test, cv=3,scoring='f1_macro') #10fold cross validation
-        data_table.append(['SMOTE',str(X_smote.shape),str(X_train.shape), "%0.4f" % (akurasi*100),0,"%0.4f" % (fm*100),"%0.4f" % (presisi*100),"%0.4f" % (recall*100) , tp, fp , tn ,fn ])
+        data_table.append(['SMOTE',str(X_smote.shape),str(X_train.shape),str(X_test.shape), "%0.4f" % (akurasi*100),"%0.4f" % (fm*100),"%0.4f" % (presisi*100),"%0.4f" % (recall*100) , tp, fp , tn ,fn ])
 
 
         #-------------------------------------------------------(ADASYN) Adaptive Synthetic Sampling Approach for Imbalanced Learning ----------------------
         gaus = GaussianNB()
         sm = ADASYN(random_state=42)
 
+        #perform ADASYN pada data training
+        X_adasyn, y_adasyn= sm.fit_sample(X, y)
 
         #kita split training dan testing 3 : 10
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.3, random_state=40)
-
-
-        #perform ADASYN pada data training
-        X_adasyn, y_adasyn= sm.fit_sample(X_train, y_train)
+        X_train, X_test, y_train, y_test = train_test_split(X_adasyn, y_adasyn, test_size=.3, random_state=40)
 
         #perform naive bayes pada data training yg sudah di-ADASYN
-        clf = gaus.fit(X_adasyn,y_adasyn)
+        clf = gaus.fit(X_train,y_train)
 
         #prediksi
         y_pred  = gaus.predict(X_test)
@@ -382,7 +383,7 @@ while loop :
         skor = gaus.score(X_test,y_test)
         scores = cross_val_score(clf , X_test,y_test, cv=3,scoring='accuracy') #10fold cross validation
         f1_macro = cross_val_score(clf , X_test,y_test, cv=3,scoring='f1_macro') #10fold cross validation
-        data_table.append(['ADASYN',str(X_adasyn.shape),str(X_train.shape), "%0.4f" % (akurasi*100),0,"%0.4f" % (fm*100),"%0.4f" % (presisi*100),"%0.4f" % (recall*100) , tp, fp , tn ,fn ])
+        data_table.append(['ADASYN',str(X_adasyn.shape),str(X_train.shape),str(X_test.shape), "%0.4f" % (akurasi*100),"%0.4f" % (fm*100),"%0.4f" % (presisi*100),"%0.4f" % (recall*100) , tp, fp , tn ,fn ])
 
         #-------------------------------------------------------kRNN OVER SAMLPLING + SMOTE ----------------------
         gaus = GaussianNB()
@@ -422,7 +423,7 @@ while loop :
         #DRAW TABLE-----------------------------------------------------------------------------------------------------------------------
         table = Texttable()
         # table.set_deco(Texttable.HEADER)
-        table.set_cols_dtype(['t', 't',  't',  't',  't','t',"t","t","t","t","t"]) # automatic
-        table.set_cols_align(["l", "r", "r", "r", "r","r","r","r","r","r","r"])
+        table.set_cols_dtype(['t', 't',  't',  't', 't', 't','t',"t","t","t","t","t"]) # automatic
+        table.set_cols_align(["l", "r", "r", "r", "r",'r',"r","r","r","r","r","r"])
         table.add_rows(data_table)
         print table.draw()
