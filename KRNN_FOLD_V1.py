@@ -24,7 +24,6 @@ from sklearn.metrics import confusion_matrix
 
 #normalisasi
 from sklearn import preprocessing
-
 # from imblearn.under_sampling import RandomUnderSampler
 from imblearn.over_sampling import RandomOverSampler
 from imblearn.over_sampling import SMOTE
@@ -72,26 +71,32 @@ while loop :
     if loop:
         print 'Dataset : ' , chosen_file
         the_k = 0.75
-        state = True
-        while state:
-            #get separator dataset
-            separator = raw_input('Pemisah kolom : ')
-            if separator != ',' and separator != ';' and separator.lower() != 'exit':
-                state  = True
-            else :
-                if separator.lower() == 'exit':
-                    loop = False
-                state = False
+        # state = True
+        # while state:
+        #     #get separator dataset
+        #     separator = raw_input('Pemisah kolom : ')
+        #     if separator != ',' and separator != ';' and separator.lower() != 'exit':
+        #         state  = True
+        #     else :
+        #         if separator.lower() == 'exit':
+        #             loop = False
+        #         state = False
 
         state = True
         while state:
-            #apakah mau dinormalisasi?
-            normalisasi = raw_input('Normalisasi? (y/n) : ')
-            if normalisasi != 'y' and normalisasi != 'n' and separator.lower() != 'exit':
+            #berapa fold cross ?
+            try:
+                fold = raw_input('Berapa fold validation (default 1-10)? : ')
+            except ValueError:
+                pass
+            try:
+                fold = int(fold)
+            except ValueError:
+                pass
+
+            if isinstance(fold,int) == False or fold < 1 or fold > 10:
                 state  = True
             else :
-                if separator.lower() == 'exit':
-                    loop = False
                 state = False
 
         the_k = raw_input('Prosentase k (0-1): ')
@@ -106,7 +111,11 @@ while loop :
         # download the file
         raw_data = urllib.urlopen(url)
         # load the CSV file as a numpy matrix
-        dataset = np.loadtxt(raw_data, delimiter=separator)
+        # jika koma error, maka ganti titik koma
+        try:
+            dataset = np.loadtxt(raw_data, delimiter=",")
+        except:
+            dataset = np.loadtxt(raw_data, delimiter=";")
         # separate the data from the target attributes
         X = dataset[:,0:dataset.shape[1]-2] #ambil kolom dari kolom ke 0 sampai ke kolom 2 dari kanan
         y = dataset[:,dataset.shape[1] - 1] #ambil kolom terakhir
@@ -119,8 +128,8 @@ while loop :
 
         X_awal = X #jaga-jaga aja, simpan X awal di X_awal
         #apakah di normalisasi?
-        if normalisasi=='y':
-            X = min_max_scaler.fit_transform(X)
+        #if normalisasi=='y':
+        #    X = min_max_scaler.fit_transform(X)
         #pisahkan dataset
         arrays = {}
         arrays_final = {}
@@ -184,8 +193,8 @@ while loop :
         baris = 0
 
         #override X menjadi X_awal (jaga-jaga aja sih kalo pake normalisasi)
-        if normalisasi=='y':
-            X = X_awal
+        #if normalisasi=='y':
+        #    X = X_awal
 
         print 100*'-'
 
@@ -206,7 +215,7 @@ while loop :
         arr_fm = []
         arr_gm = []
 
-        for num in range(1,10):
+        for num in range(1,fold):
             #kita split training dan testing 3 : 10
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.3, random_state=40)
             #eksekusi naive bayes
@@ -252,7 +261,7 @@ while loop :
         arr_fm = []
         arr_gm = []
         #np.array
-        for num in range(1,10):
+        for num in range(1,fold):
             # Apply the random under-sampling
             rus = RandomOverSampler(random_state=40)
 
@@ -320,7 +329,7 @@ while loop :
 
         # print 'Jumlah Data Training kRNN : ',X_train_krnn.shape[0]
         # print 'Jumlah Data Testing kRNN  : ',X_test_krnn.shape[0]
-        for num in range(1,10):
+        for num in range(1,fold):
             X_train_krnn, X_test_krnn, y_train_krnn, y_test_krnn = train_test_split(X_rknn, y_rknn, test_size=.3, random_state=40)
 
             #fit Naive Bayes pada data yg sudah di-kRNN
@@ -368,7 +377,7 @@ while loop :
         arr_fm = []
         arr_gm = []
 
-        for num in range(1,10):
+        for num in range(1,fold):
             #perform smote pada data training
             X_smote, y_smote= sm.fit_sample(X, y)
 
@@ -422,7 +431,7 @@ while loop :
         arr_fm = []
         arr_gm = []
 
-        for num in range(1,10):
+        for num in range(1,fold):
             #perform ADASYN pada data training
             X_adasyn, y_adasyn= sm.fit_sample(X, y)
 
