@@ -33,6 +33,7 @@ from texttable import Texttable
 
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import train_test_split
+from sklearn.model_selection import StratifiedKFold
 from sklearn.neighbors import NearestNeighbors
 import warnings
 warnings.filterwarnings("ignore")
@@ -89,9 +90,12 @@ while loop :
             else :
                 state = False
 
+        #assign stratified fold
+        skf = StratifiedKFold(n_splits=fold,random_state=10, shuffle=True)
+
         state = True
         while state:
-            #berapa fold cross ?
+            #berapa prosentase k ?
             try:
                 the_k = raw_input('Nilai k: ')
             except ValueError:
@@ -105,6 +109,23 @@ while loop :
                 state  = True
             else :
                 state = False
+
+        # state = True
+        # while state:
+        #     #berapa prosentase data testing ?
+        #     try:
+        #         data_test_size = raw_input('Prosentase Data Testing: ')
+        #     except ValueError:
+        #         pass
+        #     try:
+        #         data_test_size = float(data_test_size)
+        #     except ValueError:
+        #         pass
+        #
+        #     if isinstance(data_test_size,float) == False:
+        #         state  = True
+        #     else :
+        #         state = False
 
     if loop:
         data_table = [["Method/Param",    "Data Size (After Sampling)", "Data Training Size", "Data Testing Size","Akurasi", "F-Measure","Prec","Rec","G-Mean"]]#menampung hasil hitungan
@@ -125,6 +146,11 @@ while loop :
         X = dataset[:,0:dataset.shape[1]-2] #ambil kolom dari kolom ke 0 sampai ke kolom 2 dari kanan
         y = dataset[:,dataset.shape[1] - 1] #ambil kolom terakhir
 
+        y_class1,index_class1,jumlah_class1  = np.unique(y,return_counts=True, return_index=True) #dapatkan target labelnya apa aja
+        min_index1,min_class1 = min(enumerate(jumlah_class1), key=operator.itemgetter(1)) #min_class jumlah class terkecil
+        max_index1,max_class1 = max(enumerate(jumlah_class1), key=operator.itemgetter(1)) #max_class jumlah class terbesar
+        print 'Jumlah Kelas Minoritas : ',min_class1
+        print 'Jumlah Kelas Mayoritas : ',max_class1
         #-------------------------------------------------------TANPA OVER SAMLPLING----------------------
         gaus = GaussianNB()
         arr_akurasi = []
@@ -133,16 +159,20 @@ while loop :
         arr_p = []
         arr_r = []
 
-        for num in range(0,fold):
+        for train_index, test_index in skf.split(X, y):
+        #for num in range(0,fold):
             #kita split training dan testing 3 : 10
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.3, random_state=27)
+            #X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=data_test_size, random_state=27)
+            X_train, X_test = X[train_index], X[test_index]
+            y_train, y_test = y[train_index], y[test_index]
+
             #eksekusi naive bayes
             clf = gaus.fit(X_train,y_train)
 
             #prediksi
             y_pred  = gaus.predict(X_test)
             #f-measure
-            fm = f1_score(y_test,y_pred,average='micro')
+            fm = f1_score(y_test,y_pred,average='binary')
             arr_fm.append(fm)
             #akurasi
             akurasi = accuracy_score(y_test,y_pred)
@@ -192,9 +222,12 @@ while loop :
         #declare Gaussian and fit with resampled dataset
         gaus = GaussianNB()
 
-        for num in range(0,fold):
+        for train_index, test_index in skf.split(X, y):
+        #for num in range(0,fold):
             #split original dataset
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.3, random_state=27)
+            #X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=data_test_size, random_state=27)
+            X_train, X_test = X[train_index], X[test_index]
+            y_train, y_test = y[train_index], y[test_index]
 
             #perform random oversampling terhadap data training
             X_resampled, y_resampled = rus.fit_sample(X_train, y_train)
@@ -230,7 +263,7 @@ while loop :
             tn, fp, fn, tp = confusion_matrix(y_test, y_pred,labels=label).ravel()
 
             #f-measure
-            fm = f1_score(y_test,y_pred,average='micro')
+            fm = f1_score(y_test,y_pred,average='binary')
             arr_fm.append(fm)
 
             scores = cross_val_score(clf , X_test,y_test, cv=3,scoring='accuracy') #10fold cross validation
@@ -258,9 +291,9 @@ while loop :
         arr_p = []
         arr_r = []
         gaus = GaussianNB()
-        for num in range(0,fold):
-            print num
-        for num in range(0,fold):
+
+        for train_index, test_index in skf.split(X, y):
+        #for num in range(0,fold):
 
             #START KRNN
             arrays = {}
@@ -268,7 +301,9 @@ while loop :
 
 
             #split dulu disini
-            X_train_krnn, X_test_krnn, y_train_krnn, y_test_krnn = train_test_split(X, y, test_size=.3, random_state=27)
+            #X_train_krnn, X_test_krnn, y_train_krnn, y_test_krnn = train_test_split(X, y, test_size=data_test_size, random_state=27)
+            X_train_krnn, X_test_krnn= X[train_index], X[test_index]
+            y_train_krnn, y_test_krnn = y[train_index], y[test_index]
 
             y_class,index_class,jumlah_class  = np.unique(y_train_krnn,return_counts=True, return_index=True) #dapatkan target labelnya apa aja
             min_index,min_class = min(enumerate(jumlah_class), key=operator.itemgetter(1)) #min_class jumlah class terkecil
@@ -352,7 +387,7 @@ while loop :
             y_pred  = gaus.predict(X_test_krnn)
 
             #f-measure
-            fm = f1_score(y_test_krnn,y_pred,average='micro')
+            fm = f1_score(y_test_krnn,y_pred,average='binary')
             arr_fm.append(fm)
             #akurasi
             akurasi = accuracy_score(y_test_krnn,y_pred)
@@ -401,10 +436,12 @@ while loop :
         arr_p = []
         arr_r = []
 
-        for num in range(0,fold):
+        for train_index, test_index in skf.split(X, y):
+        #for num in range(0,fold):
             #kita split training dan testing 3 : 10
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.3, random_state=27)
-
+            #X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=data_test_size, random_state=27)
+            X_train, X_test = X[train_index], X[test_index]
+            y_train, y_test = y[train_index], y[test_index]
             #perform smote pada data training
             X_smote, y_smote= sm.fit_sample(X_train, y_train)
 
@@ -414,7 +451,7 @@ while loop :
             #prediksi
             y_pred  = gaus.predict(X_test)
             #f-measure
-            fm = f1_score(y_test,y_pred,average='micro')
+            fm = f1_score(y_test,y_pred,average='binary')
             arr_fm.append(fm)
             #akurasi
             akurasi = accuracy_score(y_test,y_pred)
@@ -466,9 +503,12 @@ while loop :
         arr_p = []
         arr_r = []
 
-        for num in range(0,fold):
+        for train_index, test_index in skf.split(X, y):
+        #for num in range(0,fold):
             #kita split training dan testing 3 : 10
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.3, random_state=27)
+            #X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=data_test_size, random_state=27)
+            X_train, X_test = X[train_index], X[test_index]
+            y_train, y_test = y[train_index], y[test_index]
 
             #perform ADASYN pada data training
             X_adasyn, y_adasyn= sm.fit_sample(X_train, y_train)
@@ -479,7 +519,7 @@ while loop :
             #prediksi
             y_pred  = gaus.predict(X_test)
             #f-measure
-            fm = f1_score(y_test,y_pred,average='micro')
+            fm = f1_score(y_test,y_pred,average='binary')
             arr_fm.append(fm)
             #akurasi
             akurasi = accuracy_score(y_test,y_pred)
